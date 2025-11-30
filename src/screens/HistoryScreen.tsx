@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,18 +6,45 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCalculationStore, SavedCalculation } from '../store/calculationStore';
+import { useAuthStore } from '../store/authStore';
 import { formatCurrency, formatPercent } from '../lib/calculations';
 import { colors } from '../constants/colors';
 import { spacing } from '../constants/spacing';
 
 export default function HistoryScreen() {
-  const { calculations, deleteCalculation, toggleFavorite, clearAll } =
-    useCalculationStore();
+  const {
+    calculations,
+    deleteCalculation,
+    toggleFavorite,
+    clearAll,
+    syncWithCloud,
+    isSyncing,
+    lastSyncedAt,
+    syncError,
+  } = useCalculationStore();
+  const { isAuthenticated } = useAuthStore();
   const [filter, setFilter] = useState<'all' | 'favorites'>('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Sync on mount if authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      syncWithCloud();
+    }
+  }, [isAuthenticated]);
+
+  const handleRefresh = async () => {
+    if (!isAuthenticated) return;
+    setRefreshing(true);
+    await syncWithCloud();
+    setRefreshing(false);
+  };
 
   const filteredCalculations =
     filter === 'favorites'
@@ -30,7 +57,9 @@ export default function HistoryScreen() {
       {
         text: '削除',
         style: 'destructive',
-        onPress: () => deleteCalculation(id),
+        onPress: async () => {
+          await deleteCalculation(id);
+        },
       },
     ]);
   };
@@ -65,7 +94,7 @@ export default function HistoryScreen() {
             {calculation.title}
           </Text>
           <TouchableOpacity
-            onPress={() => toggleFavorite(calculation.id)}
+            onPress={async () => await toggleFavorite(calculation.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <MaterialCommunityIcons
@@ -135,9 +164,30 @@ export default function HistoryScreen() {
     </View>
   );
 
+  const formatLastSync = () => {
+    if (!lastSyncedAt) return null;
+    const date = new Date(lastSyncedAt);
+    return date.toLocaleTimeString('ja-JP', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          isAuthenticated ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          ) : undefined
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>計算履歴</Text>
@@ -145,12 +195,44 @@ export default function HistoryScreen() {
               {calculations.length}件の計算履歴
             </Text>
           </View>
-          {calculations.length > 0 && (
-            <TouchableOpacity onPress={handleClearAll}>
-              <Text style={styles.clearAllText}>全削除</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.headerActions}>
+            {isAuthenticated && (
+              <TouchableOpacity
+                style={styles.syncButton}
+                onPress={syncWithCloud}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <MaterialCommunityIcons
+                    name="cloud-sync"
+                    size={20}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            )}
+            {calculations.length > 0 && (
+              <TouchableOpacity onPress={handleClearAll}>
+                <Text style={styles.clearAllText}>全削除</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
+
+        {/* Sync Status */}
+        {isAuthenticated && (lastSyncedAt || syncError) && (
+          <View style={styles.syncStatus}>
+            {syncError ? (
+              <Text style={styles.syncErrorText}>{syncError}</Text>
+            ) : (
+              <Text style={styles.syncSuccessText}>
+                最終同期: {formatLastSync()}
+              </Text>
+            )}
+          </View>
+        )}
 
         {calculations.length > 0 && (
           <View style={styles.filterRow}>
@@ -228,7 +310,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  syncButton: {
+    padding: spacing.xs,
+  },
+  syncStatus: {
+    marginBottom: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  syncSuccessText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  syncErrorText: {
+    fontSize: 12,
+    color: colors.error,
   },
   title: {
     fontSize: 28,

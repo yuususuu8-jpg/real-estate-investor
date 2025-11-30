@@ -103,7 +103,7 @@ export default function CalculationScreen() {
     setIsSaved(false);
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!inputs.price || !inputs.monthlyRent || !result) return;
 
     const calculationInput: PropertyInput = {
@@ -121,7 +121,7 @@ export default function CalculationScreen() {
     };
 
     const title = `¥${formatCurrency(inputs.price)} / ${formatPercent(result.grossYield)}`;
-    addCalculation(title, calculationInput, result);
+    await addCalculation(title, calculationInput, result);
     setIsSaved(true);
     Alert.alert('保存完了', '計算結果を履歴に保存しました');
   }, [inputs, result, addCalculation]);
