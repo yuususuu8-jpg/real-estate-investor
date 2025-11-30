@@ -54,3 +54,22 @@ export interface ApiResponse<T> {
   error?: ApiError;
   success: boolean;
 }
+
+// Auth types
+export interface AuthCredentials {
+  email: string;
+  password: string;
+}
+
+export interface SignUpData extends AuthCredentials {
+  name?: string;
+}
+
+export interface AuthFormErrors {
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+  general?: string;
+}
+
+export type AuthScreenType = 'login' | 'signup' | 'forgotPassword';

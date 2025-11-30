@@ -1,9 +1,30 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuthStore } from '../store/authStore';
+import { colors } from '../constants/colors';
 
 export default function SettingsScreen() {
+  const { user, signOut } = useAuthStore();
+
+  const handleLogout = () => {
+    Alert.alert(
+      'ログアウト',
+      'ログアウトしてもよろしいですか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'ログアウト',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+          },
+        },
+      ]
+    );
+  };
+
   const settingsSections = [
     {
       title: 'アカウント',
@@ -34,7 +55,20 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>設定</Text>
-        
+
+        {/* User info card */}
+        {user && (
+          <View style={styles.userCard}>
+            <View style={styles.userAvatar}>
+              <MaterialCommunityIcons name="account" size={32} color={colors.white} />
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userEmail}>{user.email}</Text>
+              <Text style={styles.userPlan}>フリープラン</Text>
+            </View>
+          </View>
+        )}
+
         {settingsSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -43,6 +77,7 @@ export default function SettingsScreen() {
                 key={itemIndex}
                 style={[
                   styles.settingItem,
+                  itemIndex === 0 && styles.firstItem,
                   itemIndex === section.items.length - 1 && styles.lastItem,
                 ]}
                 onPress={item.onPress}
@@ -64,6 +99,12 @@ export default function SettingsScreen() {
             ))}
           </View>
         ))}
+
+        {/* Logout button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <MaterialCommunityIcons name="logout" size={24} color={colors.error} />
+          <Text style={styles.logoutText}>ログアウト</Text>
+        </TouchableOpacity>
 
         <View style={styles.versionSection}>
           <Text style={styles.versionText}>Version 1.0.0</Text>
@@ -87,6 +128,35 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 24,
   },
+  userCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  userAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userInfo: {
+    marginLeft: 16,
+  },
+  userEmail: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  userPlan: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 4,
+  },
   section: {
     marginBottom: 24,
   },
@@ -105,12 +175,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  firstItem: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   lastItem: {
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
+    borderBottomWidth: 0,
   },
   settingItemLeft: {
     flexDirection: 'row',
@@ -120,6 +195,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
     marginLeft: 12,
+  },
+  logoutButton: {
+    backgroundColor: colors.errorBackground,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.error,
+    marginLeft: 8,
   },
   versionSection: {
     alignItems: 'center',

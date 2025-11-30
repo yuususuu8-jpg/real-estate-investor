@@ -41,3 +41,28 @@ export const COLORS = {
     900: '#111827',
   },
 };
+
+// Simple color access for common usage
+export const colors = {
+  primary: COLORS.primary[600],
+  primaryLight: COLORS.primary[100],
+  secondary: COLORS.primary[500],
+  background: COLORS.gray[50],
+  surface: '#FFFFFF',
+  white: '#FFFFFF',
+  black: '#000000',
+  textPrimary: COLORS.gray[900],
+  textSecondary: COLORS.gray[500],
+  textDisabled: COLORS.gray[400],
+  border: COLORS.gray[200],
+  borderDark: COLORS.gray[300],
+  divider: COLORS.gray[200],
+  success: COLORS.success.DEFAULT,
+  successBackground: COLORS.success.light,
+  warning: COLORS.warning.DEFAULT,
+  warningBackground: COLORS.warning.light,
+  error: COLORS.error.DEFAULT,
+  errorBackground: COLORS.error.light,
+  info: COLORS.info.DEFAULT,
+  infoBackground: COLORS.info.light,
+};

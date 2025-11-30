@@ -43,3 +43,6 @@ export const FONT_WEIGHT = {
   semibold: '600' as const,
   bold: '700' as const,
 };
+
+// Simple spacing access
+export const spacing = SPACING;
