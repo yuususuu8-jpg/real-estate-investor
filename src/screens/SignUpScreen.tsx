@@ -11,6 +11,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { colors } from '../constants/colors';
 import { spacing } from '../constants/spacing';
@@ -23,7 +24,14 @@ export function SignUpScreen({ onNavigateToLogin }: SignUpScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const { signUp, isLoading, error, clearError } = useAuthStore();
+  const [registrationComplete, setRegistrationComplete] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const { signUp, isLoading, error, clearError, resetPendingSignUp } = useAuthStore();
+
+  const handleNavigateToLogin = () => {
+    resetPendingSignUp();
+    onNavigateToLogin();
+  };
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,15 +64,72 @@ export function SignUpScreen({ onNavigateToLogin }: SignUpScreenProps) {
 
     const result = await signUp(email.trim(), password);
     if (result.success) {
-      Alert.alert(
-        '登録完了',
-        '確認メールを送信しました。メールを確認してアカウントを有効化してください。',
-        [{ text: 'OK', onPress: onNavigateToLogin }]
-      );
+      setRegisteredEmail(email.trim());
+      setRegistrationComplete(true);
     } else if (result.error) {
       Alert.alert('登録エラー', result.error.message);
     }
   };
+
+  // 登録完了画面
+  if (registrationComplete) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.successContent}>
+          <View style={styles.successIconContainer}>
+            <MaterialCommunityIcons name="email-check" size={80} color={colors.success} />
+          </View>
+
+          <Text style={styles.successTitle}>仮登録が完了しました</Text>
+
+          <Text style={styles.successMessage}>
+            確認メールを以下のアドレスに送信しました
+          </Text>
+
+          <View style={styles.emailContainer}>
+            <MaterialCommunityIcons name="email-outline" size={20} color={colors.primary} />
+            <Text style={styles.emailText}>{registeredEmail}</Text>
+          </View>
+
+          <View style={styles.instructionContainer}>
+            <Text style={styles.instructionTitle}>次のステップ</Text>
+            <View style={styles.instructionItem}>
+              <Text style={styles.instructionNumber}>1</Text>
+              <Text style={styles.instructionText}>
+                メールボックスを確認してください
+              </Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Text style={styles.instructionNumber}>2</Text>
+              <Text style={styles.instructionText}>
+                「不動産投資家アプリ - メールアドレス確認」というメールを開きます
+              </Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Text style={styles.instructionNumber}>3</Text>
+              <Text style={styles.instructionText}>
+                メール内の確認リンクをクリックしてください
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.noteContainer}>
+            <MaterialCommunityIcons name="information-outline" size={16} color={colors.textSecondary} />
+            <Text style={styles.noteText}>
+              メールが届かない場合は、迷惑メールフォルダもご確認ください
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleNavigateToLogin}
+          >
+            <Text style={styles.loginButtonText}>ログイン画面へ</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -244,5 +309,108 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  // 登録完了画面のスタイル
+  successContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+  },
+  successIconContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  emailContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    marginBottom: spacing.xl,
+    gap: spacing.xs,
+  },
+  emailText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  instructionContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  instructionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  instructionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  instructionNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 24,
+    overflow: 'hidden',
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+    lineHeight: 20,
+  },
+  noteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    marginBottom: spacing.xl,
+    gap: spacing.xs,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
+  loginButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loginButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -1,12 +1,66 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
-import { colors } from '../constants/colors';
+import { useTheme } from '../hooks/useTheme';
+import { useNetworkStatus, formatTimeSince } from '../hooks/useNetworkStatus';
+import { offlineCache, formatCacheSize } from '../lib/offlineCache';
+import { ThemeColors } from '../constants/colors';
+import type { NavigationProp } from '../navigation/MainNavigator';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuthStore();
+  const navigation = useNavigation<NavigationProp>();
+  const { colors } = useTheme();
+  const { isOnline, syncStatus } = useNetworkStatus();
+
+  const [cacheStats, setCacheStats] = useState<{
+    totalSize: number;
+    entryCount: number;
+  }>({ totalSize: 0, entryCount: 0 });
+  const [isClearing, setIsClearing] = useState(false);
+
+  // Load cache stats
+  const loadCacheStats = useCallback(async () => {
+    const stats = await offlineCache.getStats();
+    setCacheStats({
+      totalSize: stats.totalSize,
+      entryCount: stats.entryCount,
+    });
+  }, []);
+
+  useEffect(() => {
+    loadCacheStats();
+  }, [loadCacheStats]);
+
+  // Clear cache handler
+  const handleClearCache = useCallback(() => {
+    Alert.alert(
+      'キャッシュを削除',
+      'オフラインデータのキャッシュを削除します。よろしいですか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除',
+          style: 'destructive',
+          onPress: async () => {
+            setIsClearing(true);
+            try {
+              await offlineCache.clearAll();
+              await loadCacheStats();
+              Alert.alert('完了', 'キャッシュを削除しました');
+            } catch (error) {
+              Alert.alert('エラー', 'キャッシュの削除に失敗しました');
+            } finally {
+              setIsClearing(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [loadCacheStats]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -29,7 +83,7 @@ export default function SettingsScreen() {
     {
       title: 'アカウント',
       items: [
-        { icon: 'account', label: 'プロフィール', onPress: () => {} },
+        { icon: 'account', label: 'プロフィール', onPress: () => navigation.navigate('Profile') },
         { icon: 'credit-card', label: 'サブスクリプション', onPress: () => {} },
       ],
     },
@@ -37,19 +91,38 @@ export default function SettingsScreen() {
       title: 'アプリ',
       items: [
         { icon: 'bell', label: '通知設定', onPress: () => {} },
-        { icon: 'palette', label: 'テーマ', onPress: () => {} },
-        { icon: 'translate', label: '言語', onPress: () => {} },
+        { icon: 'palette', label: 'テーマ', onPress: () => navigation.navigate('Theme') },
+        { icon: 'translate', label: '言語', onPress: () => navigation.navigate('Language') },
+      ],
+    },
+    {
+      title: 'データ',
+      items: [
+        {
+          icon: 'database',
+          label: 'キャッシュを削除',
+          onPress: handleClearCache,
+          rightText: formatCacheSize(cacheStats.totalSize),
+        },
+        {
+          icon: 'cloud-sync',
+          label: '同期状態',
+          onPress: () => {},
+          rightText: isOnline ? (syncStatus.hasPendingChanges ? `${syncStatus.pendingCount}件保留` : '同期済み') : 'オフライン',
+        },
       ],
     },
     {
       title: 'サポート',
       items: [
-        { icon: 'help-circle', label: 'ヘルプ', onPress: () => {} },
-        { icon: 'information', label: 'アプリについて', onPress: () => {} },
-        { icon: 'shield-check', label: 'プライバシーポリシー', onPress: () => {} },
+        { icon: 'help-circle', label: 'ヘルプ', onPress: () => navigation.navigate('Help') },
+        { icon: 'information', label: 'アプリについて', onPress: () => navigation.navigate('About') },
+        { icon: 'shield-check', label: 'プライバシーポリシー', onPress: () => navigation.navigate('PrivacyPolicy') },
       ],
     },
   ];
+
+  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,15 +159,20 @@ export default function SettingsScreen() {
                   <MaterialCommunityIcons
                     name={item.icon as any}
                     size={24}
-                    color="#6B7280"
+                    color={colors.textSecondary}
                   />
                   <Text style={styles.settingItemLabel}>{item.label}</Text>
                 </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color="#D1D5DB"
-                />
+                <View style={styles.settingItemRight}>
+                  {'rightText' in item && item.rightText && (
+                    <Text style={styles.settingItemRightText}>{item.rightText}</Text>
+                  )}
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={24}
+                    color={colors.borderDark}
+                  />
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -114,10 +192,10 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: 20,
@@ -125,7 +203,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 24,
   },
   userCard: {
@@ -163,20 +241,20 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
     marginLeft: 4,
   },
   settingItem: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   firstItem: {
     borderTopLeftRadius: 12,
@@ -191,10 +269,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  settingItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   settingItemLabel: {
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginLeft: 12,
+  },
+  settingItemRightText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginRight: 8,
   },
   logoutButton: {
     backgroundColor: colors.errorBackground,
@@ -218,6 +305,6 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
 });

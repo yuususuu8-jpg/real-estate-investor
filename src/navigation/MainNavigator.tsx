@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -10,8 +11,100 @@ import CalculationScreen from '../screens/CalculationScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
+// Import settings sub-screens
+import ProfileScreen from '../screens/settings/ProfileScreen';
+import ThemeScreen from '../screens/settings/ThemeScreen';
+import LanguageScreen from '../screens/settings/LanguageScreen';
+import HelpScreen from '../screens/settings/HelpScreen';
+import AboutScreen from '../screens/settings/AboutScreen';
+import PrivacyPolicyScreen from '../screens/settings/PrivacyPolicyScreen';
+
+// Import AI evaluation screen
+import AIEvaluationScreen from '../screens/AIEvaluationScreen';
+
+// Import comparison screen
+import ComparisonScreen from '../screens/ComparisonScreen';
+import SimulationScreen from '../screens/SimulationScreen';
+import PortfolioScreen from '../screens/PortfolioScreen';
+import { SavedCalculation } from '../store/calculationStore';
+
+// Tab screen names (for navigation from anywhere)
+export type TabParamList = {
+  Home: undefined;
+  Calculation: undefined;
+  History: undefined;
+  Settings: undefined;
+};
+
+export type RootStackParamList = {
+  MainTabs: undefined;
+  Profile: undefined;
+  Theme: undefined;
+  Language: undefined;
+  Help: undefined;
+  About: undefined;
+  PrivacyPolicy: undefined;
+  AIEvaluation: undefined;
+  Comparison: { calculations: SavedCalculation[] };
+  Simulation: { calculation: SavedCalculation };
+  Portfolio: undefined;
+} & TabParamList;
+
+export type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Wrapper components to pass navigation props
+function ProfileScreenWrapper() {
+  const navigation = useNavigation<NavigationProp>();
+  return <ProfileScreen onGoBack={() => navigation.goBack()} />;
+}
+
+function ThemeScreenWrapper() {
+  const navigation = useNavigation<NavigationProp>();
+  return <ThemeScreen onGoBack={() => navigation.goBack()} />;
+}
+
+function LanguageScreenWrapper() {
+  const navigation = useNavigation<NavigationProp>();
+  return <LanguageScreen onGoBack={() => navigation.goBack()} />;
+}
+
+function HelpScreenWrapper() {
+  const navigation = useNavigation<NavigationProp>();
+  return <HelpScreen onGoBack={() => navigation.goBack()} />;
+}
+
+function AboutScreenWrapper() {
+  const navigation = useNavigation<NavigationProp>();
+  return <AboutScreen onGoBack={() => navigation.goBack()} />;
+}
+
+function PrivacyPolicyScreenWrapper() {
+  const navigation = useNavigation<NavigationProp>();
+  return <PrivacyPolicyScreen onGoBack={() => navigation.goBack()} />;
+}
+
+function ComparisonScreenWrapper({ route }: { route: { params: { calculations: SavedCalculation[] } } }) {
+  const navigation = useNavigation<NavigationProp>();
+  return (
+    <ComparisonScreen
+      calculations={route.params.calculations}
+      onGoBack={() => navigation.goBack()}
+    />
+  );
+}
+
+function SimulationScreenWrapper({ route }: { route: { params: { calculation: SavedCalculation } } }) {
+  const navigation = useNavigation<NavigationProp>();
+  return (
+    <SimulationScreen
+      calculation={route.params.calculation}
+      onGoBack={() => navigation.goBack()}
+    />
+  );
+}
 
 function HomeTabs() {
   return (
@@ -82,6 +175,16 @@ export default function MainNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="MainTabs" component={HomeTabs} />
+        <Stack.Screen name="Profile" component={ProfileScreenWrapper} />
+        <Stack.Screen name="Theme" component={ThemeScreenWrapper} />
+        <Stack.Screen name="Language" component={LanguageScreenWrapper} />
+        <Stack.Screen name="Help" component={HelpScreenWrapper} />
+        <Stack.Screen name="About" component={AboutScreenWrapper} />
+        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreenWrapper} />
+        <Stack.Screen name="AIEvaluation" component={AIEvaluationScreen} />
+        <Stack.Screen name="Comparison" component={ComparisonScreenWrapper} />
+        <Stack.Screen name="Simulation" component={SimulationScreenWrapper} />
+        <Stack.Screen name="Portfolio" component={PortfolioScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

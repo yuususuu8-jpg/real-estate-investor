@@ -15,6 +15,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
+  pendingSignUp: boolean; // サインアップ中はauth state changeを無視
 
   // Actions
   setUser: (user: User | null) => void;
@@ -28,15 +29,17 @@ interface AuthState {
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: AuthError }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: AuthError }>;
+  resetPendingSignUp: () => void;
   initialize: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set, _get) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   session: null,
   isLoading: true,
   isAuthenticated: false,
   error: null,
+  pendingSignUp: false,
 
   setUser: user =>
     set({
@@ -80,23 +83,21 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
   },
 
   signUp: async (email: string, password: string) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, pendingSignUp: true });
     try {
-      const { user, session, error } = await supabaseSignUp(email, password);
+      const { error } = await supabaseSignUp(email, password);
       if (error) {
-        set({ error: error.message, isLoading: false });
+        set({ error: error.message, isLoading: false, pendingSignUp: false });
         return { success: false, error };
       }
-      set({
-        user,
-        session,
-        isAuthenticated: !!session,
-        isLoading: false,
-      });
+      // サインアップ成功後は自動ログインしない（メール確認画面を表示するため）
+      // isAuthenticatedはfalseのままにする
+      // pendingSignUpはtrueのままにして、onAuthStateChangeでの自動ログインを防ぐ
+      set({ isLoading: false });
       return { success: true };
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : '登録に失敗しました';
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage, isLoading: false, pendingSignUp: false });
       return { success: false };
     }
   },
@@ -130,6 +131,10 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
     }
   },
 
+  resetPendingSignUp: () => {
+    set({ pendingSignUp: false });
+  },
+
   initialize: async () => {
     set({ isLoading: true });
     try {
@@ -143,6 +148,10 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
 
       // Listen for auth changes
       supabase.auth.onAuthStateChange((_event, session) => {
+        // サインアップ中は自動ログインを無視
+        if (get().pendingSignUp) {
+          return;
+        }
         set({
           session,
           user: session?.user ?? null,

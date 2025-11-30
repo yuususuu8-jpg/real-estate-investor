@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MainNavigator from './src/navigation/MainNavigator';
 import { AuthNavigator } from './src/navigation/AuthNavigator';
 import { useAuthStore } from './src/store/authStore';
@@ -23,18 +24,18 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <>
+      <SafeAreaProvider>
         <LoadingScreen />
         <StatusBar style="auto" />
-      </>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
       <StatusBar style="auto" />
-    </>
+    </SafeAreaProvider>
   );
 }
 
