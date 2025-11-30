@@ -1,0 +1,204 @@
+// Prisma Schema for Real Estate Investor App
+// Database: PostgreSQL (Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== Enums ====================
+
+enum PropertyType {
+  MANSION      // 1棟マンション
+  APARTMENT    // 1棟アパート
+  BUILDING     // 1棟ビル
+  CONDOMINIUM  // 区分マンション
+  HOUSE        // 戸建て
+  TERRACE      // テラスハウス
+}
+
+enum SubscriptionPlan {
+  FREE
+  STANDARD
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  UNPAID
+}
+
+enum CalculationStatus {
+  DRAFT
+  COMPLETED
+  ARCHIVED
+}
+
+// ==================== User Management ====================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?  @map("avatar_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  subscription   Subscription?
+  usageLimit     UsageLimit?
+  calculations   PropertyCalculation[]
+
+  @@map("users")
+}
+
+model Subscription {
+  id        String             @id @default(uuid())
+  userId    String             @unique @map("user_id")
+
+  plan      SubscriptionPlan   @default(FREE)
+  status    SubscriptionStatus @default(ACTIVE)
+
+  stripeCustomerId     String? @map("stripe_customer_id")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
+
+  currentPeriodStart DateTime? @map("current_period_start")
+  currentPeriodEnd   DateTime? @map("current_period_end")
+  cancelAtPeriodEnd  Boolean   @default(false) @map("cancel_at_period_end")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([stripeCustomerId])
+  @@map("subscriptions")
+}
+
+model UsageLimit {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+
+  currentMonth    DateTime @default(now()) @map("current_month")
+  calculationCount Int      @default(0) @map("calculation_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("usage_limits")
+}
+
+// ==================== Property Calculations ====================
+
+model PropertyCalculation {
+  id        String             @id @default(uuid())
+  userId    String             @map("user_id")
+
+  // Property Information
+  propertyType PropertyType      @map("property_type")
+  address      String
+  price        Float              // 物件価格
+  size         Float              // 建物面積（㎡）
+  landSize     Float?             @map("land_size") // 土地面積（㎡）
+  buildingAge  Int?               @map("building_age") // 築年数
+
+  // Status
+  status       CalculationStatus @default(DRAFT)
+  isFavorite   Boolean           @default(false) @map("is_favorite")
+
+  // Metadata
+  title        String?            // ユーザーが付けたタイトル
+  notes        String?            // メモ
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  details CalculationDetail?
+
+  @@index([userId])
+  @@index([status])
+  @@index([isFavorite])
+  @@index([createdAt])
+  @@map("property_calculations")
+}
+
+model CalculationDetail {
+  id                   String @id @default(uuid())
+  propertyCalculationId String @unique @map("property_calculation_id")
+
+  // Input Data
+  monthlyRent          Float?  @map("monthly_rent")          // 月額賃料
+  managementFee        Float?  @map("management_fee")        // 管理費
+  repairReserve        Float?  @map("repair_reserve")        // 修繕積立金
+  propertyTax          Float?  @map("property_tax")          // 固定資産税
+  insuranceFee         Float?  @map("insurance_fee")         // 火災保険料
+  vacancyRate          Float?  @map("vacancy_rate")          // 空室率
+
+  // Loan Information
+  loanAmount           Float?  @map("loan_amount")           // 借入金額
+  loanInterestRate     Float?  @map("loan_interest_rate")    // 金利
+  loanPeriod           Int?    @map("loan_period")           // 返済期間（年）
+  monthlyLoanPayment   Float?  @map("monthly_loan_payment")  // 月々の返済額
+
+  // Calculated Results
+  grossYield           Float?  @map("gross_yield")           // 表面利回り
+  netYield             Float?  @map("net_yield")             // 実質利回り
+  annualIncome         Float?  @map("annual_income")         // 年間収入
+  annualExpense        Float?  @map("annual_expense")        // 年間支出
+  annualCashFlow       Float?  @map("annual_cash_flow")      // 年間キャッシュフロー
+  ccr                  Float?  // CCR（自己資金配当率）
+
+  // AI Analysis
+  marketRentEstimate   Float?  @map("market_rent_estimate")  // AI推定賃料
+  areaAverageYield     Float?  @map("area_average_yield")    // エリア平均利回り
+  aiRiskScore          Float?  @map("ai_risk_score")         // AIリスクスコア
+  aiRecommendation     String? @map("ai_recommendation")     // AI推奨コメント
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  propertyCalculation PropertyCalculation @relation(fields: [propertyCalculationId], references: [id], onDelete: Cascade)
+
+  @@index([propertyCalculationId])
+  @@map("calculation_details")
+}
+
+// ==================== Market Data Cache ====================
+
+model MarketDataCache {
+  id        String   @id @default(uuid())
+
+  address   String   @unique
+  zipCode   String?  @map("zip_code")
+
+  // Cached Market Data
+  averageRent      Float?   @map("average_rent")
+  averagePrice     Float?   @map("average_price")
+  averageYield     Float?   @map("average_yield")
+
+  // Metadata
+  dataSource       String?  @map("data_source")
+  expiresAt        DateTime @map("expires_at") // キャッシュ有効期限
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([address])
+  @@index([expiresAt])
+  @@map("market_data_cache")
+}
